@@ -53,18 +53,42 @@ export async function migrate(db: Db): Promise<void> {
   }
 }
 
+export interface DatabaseConfig {
+  url: string;
+  authToken: string | undefined;
+}
+
+/**
+ * Configuración de la base de datos a partir del entorno.
+ * Acepta DATABASE_URL / DATABASE_AUTH_TOKEN y, como alternativa, las variables
+ * TURSO_DATABASE_URL / TURSO_AUTH_TOKEN que inyecta la integración de Turso en Vercel.
+ */
+export function resolveDatabaseConfig(env: Record<string, string | undefined>): DatabaseConfig {
+  const url = (env.DATABASE_URL || env.TURSO_DATABASE_URL)?.trim() || DEFAULT_DATABASE_URL;
+  const authToken = (env.DATABASE_AUTH_TOKEN || env.TURSO_AUTH_TOKEN)?.trim() || undefined;
+  if (env.VERCEL && url.startsWith("file:")) {
+    // En Vercel el disco es efímero y de solo lectura: un archivo local perdería los datos.
+    throw new Error(
+      "Falta la base de datos online. Conecta una base de datos de Turso (DATABASE_URL y DATABASE_AUTH_TOKEN, o la integración de Turso en Vercel).",
+    );
+  }
+  return { url, authToken };
+}
+
 // Singleton por proceso (sobrevive al hot-reload de desarrollo).
 const globalForDb = globalThis as unknown as { __reformaproDb?: Promise<Db> };
 
 export function getDb(): Promise<Db> {
   if (!globalForDb.__reformaproDb) {
-    const url = process.env.DATABASE_URL?.trim() || DEFAULT_DATABASE_URL;
-    globalForDb.__reformaproDb = openDatabase(url, process.env.DATABASE_AUTH_TOKEN).catch(
-      (err) => {
+    globalForDb.__reformaproDb = Promise.resolve()
+      .then(() => {
+        const { url, authToken } = resolveDatabaseConfig(process.env);
+        return openDatabase(url, authToken);
+      })
+      .catch((err) => {
         globalForDb.__reformaproDb = undefined; // permite reintentar
         throw err;
-      },
-    );
+      });
   }
   return globalForDb.__reformaproDb;
 }

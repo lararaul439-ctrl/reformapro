@@ -50,8 +50,8 @@ Copy `.env.example` to `.env.local` if you need to change anything.
 
 | Variable | Purpose |
 | --- | --- |
-| `DATABASE_URL` | `file:./data/reformapro.db` (default) or a `libsql://` URL for a remote database. |
-| `DATABASE_AUTH_TOKEN` | Token for a remote libSQL/Turso database. |
+| `DATABASE_URL` | `file:./data/reformapro.db` (default) or a `libsql://` URL for a remote database. `TURSO_DATABASE_URL` is accepted as an alternative. |
+| `DATABASE_AUTH_TOKEN` | Token for a remote libSQL/Turso database. `TURSO_AUTH_TOKEN` is accepted as an alternative. |
 | `ACCESS_PASSWORD` | Optional. When set, all pages require this password. Set it on any internet-facing deployment. |
 | `INSECURE_COOKIES` | Set to `1` only when serving over plain HTTP outside `localhost`. |
 
@@ -71,13 +71,14 @@ All data lives in the `/app/data` volume, so it survives container updates. Put 
 
 ### Vercel + Turso
 
-Serverless platforms have no persistent disk, so use a remote libSQL database:
+Serverless platforms have no persistent disk, so the online version needs a remote libSQL database. Both services have a free plan.
 
-1. Create a database on [Turso](https://turso.tech) and note its URL and token.
-2. Import the repository into Vercel.
-3. Set `DATABASE_URL`, `DATABASE_AUTH_TOKEN` and `ACCESS_PASSWORD` in the project environment variables.
+1. Import the repository into [Vercel](https://vercel.com/new).
+2. In the project, open **Storage** and add the **Turso Cloud** integration from the Marketplace. It creates the database and injects `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` automatically (both are accepted by the app). Alternatively, create a database on [Turso](https://turso.tech) and set `DATABASE_URL` and `DATABASE_AUTH_TOKEN` yourself.
+3. Add `ACCESS_PASSWORD` to the environment variables. The site is public on the internet, so this password is what keeps your quotes private.
+4. Redeploy. Tables are created automatically on the first request.
 
-Tables are created automatically on first request.
+If the database variables are missing, the app shows a clear error instead of silently using the read-only disk.
 
 ## Tests
 
